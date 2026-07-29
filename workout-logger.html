@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger — Workout Logger</title>
+<style>
+  :root {
+    --bg: #0E1419;
+    --panel: #18222B;
+    --panel2: #141D25;
+    --border: #26333D;
+    --text: #E6EBEF;
+    --muted: #6F8090;
+    --muted2: #9DAEBB;
+    --accent: #F5C518;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 24px 16px 80px;
+  }
+  .wrap { max-width: 520px; margin: 0 auto; }
+  h1 {
+    font-family: monospace;
+    font-size: 11px;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 4px;
+  }
+  .sub {
+    font-family: monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 20px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  label {
+    display: block;
+    font-family: monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  input, select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 10px 12px;
+    font-size: 15px;
+    font-family: inherit;
+  }
+  input:focus, select:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .field { margin-bottom: 14px; }
+  .checkrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .checkrow input { width: auto; }
+  button {
+    width: 100%;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    padding: 13px;
+    font-family: monospace;
+    font-size: 12px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; }
+  .status {
+    font-family: monospace;
+    font-size: 11px;
+    text-align: center;
+    margin-top: 10px;
+    min-height: 16px;
+  }
+  .status.ok { color: var(--accent); }
+  .status.err { color: #ff6b6b; }
+  .toggle {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 11px;
+    padding: 8px 12px;
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: normal;
+    width: auto;
+  }
+  #log { margin-top: 4px; }
+  #log li {
+    list-style: none;
+    font-family: monospace;
+    font-size: 12px;
+    color: var(--muted2);
+    padding: 6px 0;
+    border-bottom: 1px solid #212D36;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Ledger</h1>
+  <div class="sub">Workout logger → Google Sheet</div>
+
+  <div class="card" id="setupCard">
+    <label for="scriptUrl">Apps Script Web App URL</label>
+    <input id="scriptUrl" placeholder="https://script.google.com/macros/s/XXXX/exec">
+    <button class="toggle" style="margin-top:10px;" onclick="saveUrl()">Save URL</button>
+    <div class="status" id="setupStatus"></div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <div class="field">
+        <label for="date">Date</label>
+        <input type="date" id="date">
+      </div>
+      <div class="field">
+        <label for="session">Session</label>
+        <select id="session" onchange="fillExercises()">
+          <option value="A">A — Squat + Horizontal Push</option>
+          <option value="B">B — Hinge + Vertical Press</option>
+          <option value="C">C — Volume + Weak Points</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="exercise">Exercise</label>
+      <select id="exercise"></select>
+    </div>
+
+    <div class="row3">
+      <div class="field">
+        <label for="setNumber">Set #</label>
+        <input type="number" id="setNumber" min="1" value="1">
+      </div>
+      <div class="field">
+        <label for="weight">Weight</label>
+        <input type="number" id="weight" step="0.5" inputmode="decimal">
+      </div>
+      <div class="field">
+        <label for="reps">Reps</label>
+        <input type="number" id="reps" inputmode="numeric">
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="rir">RIR (optional)</label>
+      <input id="rir" placeholder="e.g. 2">
+    </div>
+
+    <div class="checkrow">
+      <input type="checkbox" id="done" checked>
+      <label for="done" style="margin:0;">Set completed</label>
+    </div>
+
+    <button id="submitBtn" onclick="submitSet()">Log set (Enter)</button>
+    <div class="status" id="submitStatus"></div>
+  </div>
+
+  <div class="card">
+    <label style="margin-bottom:8px;">Logged this session</label>
+    <ul id="log"></ul>
+  </div>
+</div>
+
+<script>
+const PROGRAM = {
+  A: ["Back Squat","Flat DB Bench Press","Barbell Row","Lying Leg Curl","Cable Lateral Raise","Cable Curl","Standing Calf Raise","Cable Face Pull"],
+  B: ["Romanian Deadlift","Standing Barbell Overhead Press","Pull-up or Cable Pulldown","Cable Fly","Bulgarian Split Squat","Incline DB Curl","Cable Triceps Pushdown","Kettlebell Suitcase Carry"],
+  C: ["Deadlift","Incline DB Press","Chest-Supported / Seated Cable Row","Leg Extension","Cable Lateral Raise","DB Hammer Curl","Overhead Cable Triceps Extension","Seated or Standing Calf Raise"]
+};
+
+const els = {};
+["scriptUrl","date","session","exercise","setNumber","weight","reps","rir","done"].forEach(id => els[id] = document.getElementById(id));
+
+function todayStr() {
+  const d = new Date();
+  return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+}
+
+function fillExercises() {
+  const list = PROGRAM[els.session.value];
+  els.exercise.innerHTML = list.map(n => `<option>${n}</option>`).join("");
+}
+
+function loadUrl() {
+  const saved = localStorage.getItem("ledger_script_url");
+  if (saved) {
+    els.scriptUrl.value = saved;
+    document.getElementById("setupStatus").textContent = "URL loaded.";
+  }
+}
+
+function saveUrl() {
+  const url = els.scriptUrl.value.trim();
+  if (!url) return;
+  localStorage.setItem("ledger_script_url", url);
+  document.getElementById("setupStatus").textContent = "Saved.";
+}
+
+function addLogLine(text) {
+  const li = document.createElement("li");
+  li.textContent = text;
+  document.getElementById("log").prepend(li);
+}
+
+async function submitSet() {
+  const url = localStorage.getItem("ledger_script_url");
+  const statusEl = document.getElementById("submitStatus");
+  if (!url) {
+    statusEl.textContent = "Save your Apps Script URL above first.";
+    statusEl.className = "status err";
+    return;
+  }
+  const payload = {
+    date: els.date.value || todayStr(),
+    session: els.session.value,
+    exercise: els.exercise.value,
+    setNumber: els.setNumber.value,
+    weight: els.weight.value,
+    reps: els.reps.value,
+    rir: els.rir.value,
+    done: els.done.checked
+  };
+
+  const btn = document.getElementById("submitBtn");
+  btn.disabled = true;
+  statusEl.textContent = "Saving...";
+  statusEl.className = "status";
+
+  try {
+    // no-cors: Apps Script web apps don't return CORS headers to fetch,
+    // so we fire the request and treat network success as success.
+    await fetch(url, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    });
+    statusEl.textContent = "Saved to sheet.";
+    statusEl.className = "status ok";
+    addLogLine(`${payload.exercise} — set ${payload.setNumber}: ${payload.weight||"-"}lb × ${payload.reps||"-"}`);
+    els.setNumber.value = Number(payload.setNumber) + 1;
+    els.weight.focus();
+  } catch (err) {
+    statusEl.textContent = "Failed to reach the sheet. Check the URL.";
+    statusEl.className = "status err";
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// Enter key submits from weight/reps/rir fields
+["weight","reps","rir","setNumber"].forEach(id => {
+  els[id].addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); submitSet(); }
+  });
+});
+
+els.date.value = todayStr();
+fillExercises();
+loadUrl();
+</script>
+</body>
+</html>
