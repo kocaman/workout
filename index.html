@@ -23,7 +23,7 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     padding: 24px 16px 80px;
   }
-  .wrap { max-width: 520px; margin: 0 auto; }
+  .wrap { max-width: 560px; margin: 0 auto; }
   h1 {
     font-family: monospace;
     font-size: 11px;
@@ -38,8 +38,29 @@
     letter-spacing: 0.2em;
     text-transform: uppercase;
     color: var(--muted);
-    margin: 0 0 20px;
+    margin: 0 0 16px;
   }
+  .tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tab {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 10px 4px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .view { display: none; }
+  .view.active { display: block; }
   .card {
     background: var(--panel);
     border: 1px solid var(--border);
@@ -124,6 +145,84 @@
     padding: 6px 0;
     border-bottom: 1px solid #212D36;
   }
+
+  .sessionBlock { margin-bottom: 20px; }
+  .sessionTitle {
+    font-family: monospace;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+  .exRow { padding: 10px 0; border-bottom: 1px solid #212D36; }
+  .exRow:last-child { border-bottom: none; }
+  .exName { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+  .exMeta { font-family: monospace; font-size: 11px; color: var(--muted2); margin-bottom: 3px; }
+  .exCue { font-size: 12px; color: var(--muted); font-style: italic; }
+
+  #timerLabel { text-align: center; }
+  #timerDisplay {
+    font-family: monospace;
+    font-size: 48px;
+    font-weight: 700;
+    text-align: center;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+    margin: 4px 0 12px;
+  }
+  #timerDisplay.done { color: #ff6b6b; }
+  .timerBar {
+    height: 6px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 14px;
+  }
+  #timerFill {
+    height: 100%;
+    background: var(--accent);
+    width: 100%;
+    transition: width 1s linear;
+  }
+  .timerBtns {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 8px;
+  }
+  .timerBtns .toggle { text-align: center; padding: 10px 4px; }
+
+  .histExercise { margin-bottom: 18px; }
+  .histName { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .histPR {
+    display: inline-block;
+    font-family: monospace;
+    font-size: 10px;
+    color: #000;
+    background: var(--accent);
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 8px;
+    letter-spacing: 0.05em;
+  }
+  .histRow {
+    display: flex;
+    justify-content: space-between;
+    font-family: monospace;
+    font-size: 12px;
+    color: var(--muted2);
+    padding: 4px 0;
+    border-bottom: 1px solid #212D36;
+  }
+  .histDate { color: var(--muted); }
+  .empty {
+    font-family: monospace;
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+    padding: 20px 0;
+  }
 </style>
 </head>
 <body>
@@ -131,78 +230,149 @@
   <h1>Ledger</h1>
   <div class="sub">Workout logger → Google Sheet</div>
 
-  <div class="card" id="setupCard">
-    <label for="scriptUrl">Apps Script Web App URL</label>
-    <input id="scriptUrl" placeholder="https://script.google.com/macros/s/XXXX/exec">
-    <button class="toggle" style="margin-top:10px;" onclick="saveUrl()">Save URL</button>
-    <div class="status" id="setupStatus"></div>
+  <div class="tabs">
+    <button class="tab active" data-view="logView" onclick="showTab('logView', this)">Log</button>
+    <button class="tab" data-view="programView" onclick="showTab('programView', this)">Program</button>
+    <button class="tab" data-view="historyView" onclick="showTab('historyView', this)">History</button>
   </div>
 
-  <div class="card">
-    <div class="row">
-      <div class="field">
-        <label for="date">Date</label>
-        <input type="date" id="date">
+  <div id="logView" class="view active">
+    <div class="card" id="setupCard">
+      <label for="scriptUrl">Apps Script Web App URL</label>
+      <input id="scriptUrl" placeholder="https://script.google.com/macros/s/XXXX/exec">
+      <button class="toggle" style="margin-top:10px;" onclick="saveUrl()">Save URL</button>
+      <div class="status" id="setupStatus"></div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <div class="field">
+          <label for="date">Date</label>
+          <input type="date" id="date">
+        </div>
+        <div class="field">
+          <label for="session">Session</label>
+          <select id="session" onchange="fillExercises()">
+            <option value="A">A — Squat + Horizontal Push</option>
+            <option value="B">B — Hinge + Vertical Press</option>
+            <option value="C">C — Volume + Weak Points</option>
+          </select>
+        </div>
       </div>
+
       <div class="field">
-        <label for="session">Session</label>
-        <select id="session" onchange="fillExercises()">
-          <option value="A">A — Squat + Horizontal Push</option>
-          <option value="B">B — Hinge + Vertical Press</option>
-          <option value="C">C — Volume + Weak Points</option>
-        </select>
+        <label for="exercise">Exercise</label>
+        <select id="exercise" onchange="showTarget()"></select>
+      </div>
+      <div class="status" id="targetHint" style="text-align:left;color:var(--muted2);margin-bottom:14px;"></div>
+
+      <div class="row3">
+        <div class="field">
+          <label for="setNumber">Set #</label>
+          <input type="number" id="setNumber" min="1" value="1">
+        </div>
+        <div class="field">
+          <label for="weight">Weight</label>
+          <input type="number" id="weight" step="0.5" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="reps">Reps</label>
+          <input type="number" id="reps" inputmode="numeric">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="rir">RIR (optional)</label>
+        <input id="rir" placeholder="e.g. 2">
+      </div>
+
+      <div class="checkrow">
+        <input type="checkbox" id="done" checked>
+        <label for="done" style="margin:0;">Set completed</label>
+      </div>
+
+      <button id="submitBtn" onclick="submitSet()">Log set (Enter)</button>
+      <div class="status" id="submitStatus"></div>
+    </div>
+
+    <div class="card" id="timerCard" style="display:none;">
+      <label id="timerLabel">Rest</label>
+      <div id="timerDisplay">2:30</div>
+      <div class="timerBar"><div id="timerFill"></div></div>
+      <div class="timerBtns">
+        <button class="toggle" onclick="adjustTimer(-15)">-15s</button>
+        <button class="toggle" onclick="pauseResumeTimer()" id="timerPauseBtn">Pause</button>
+        <button class="toggle" onclick="adjustTimer(15)">+15s</button>
+        <button class="toggle" onclick="skipTimer()">Skip</button>
       </div>
     </div>
 
-    <div class="field">
-      <label for="exercise">Exercise</label>
-      <select id="exercise"></select>
+    <div class="card">
+      <label style="margin-bottom:8px;">Logged this session</label>
+      <ul id="log"></ul>
     </div>
-
-    <div class="row3">
-      <div class="field">
-        <label for="setNumber">Set #</label>
-        <input type="number" id="setNumber" min="1" value="1">
-      </div>
-      <div class="field">
-        <label for="weight">Weight</label>
-        <input type="number" id="weight" step="0.5" inputmode="decimal">
-      </div>
-      <div class="field">
-        <label for="reps">Reps</label>
-        <input type="number" id="reps" inputmode="numeric">
-      </div>
-    </div>
-
-    <div class="field">
-      <label for="rir">RIR (optional)</label>
-      <input id="rir" placeholder="e.g. 2">
-    </div>
-
-    <div class="checkrow">
-      <input type="checkbox" id="done" checked>
-      <label for="done" style="margin:0;">Set completed</label>
-    </div>
-
-    <button id="submitBtn" onclick="submitSet()">Log set (Enter)</button>
-    <div class="status" id="submitStatus"></div>
   </div>
 
-  <div class="card">
-    <label style="margin-bottom:8px;">Logged this session</label>
-    <ul id="log"></ul>
+  <div id="programView" class="view">
+    <div class="card" id="programCard"></div>
   </div>
+
+  <div id="historyView" class="view">
+    <div class="card">
+      <button class="toggle" onclick="loadHistory()">Refresh history</button>
+      <div class="status" id="historyStatus"></div>
+    </div>
+    <div class="card" id="historyCard">
+      <div class="empty">Tap "Refresh history" to pull data from the sheet.</div>
+    </div>
+  </div>
+
 </div>
 
 <script>
 const PROGRAM = {
-  A: ["Back Squat","Flat DB Bench Press","Barbell Row","Lying Leg Curl","Cable Lateral Raise","Cable Curl","Standing Calf Raise","Cable Face Pull"],
-  B: ["Romanian Deadlift","Standing Barbell Overhead Press","Pull-up or Cable Pulldown","Cable Fly","Bulgarian Split Squat","Incline DB Curl","Cable Triceps Pushdown","Kettlebell Suitcase Carry"],
-  C: ["Deadlift","Incline DB Press","Chest-Supported / Seated Cable Row","Leg Extension","Cable Lateral Raise","DB Hammer Curl","Overhead Cable Triceps Extension","Seated or Standing Calf Raise"]
+  A: { name: "Squat + Horizontal Push", exercises: [
+    { name: "Back Squat", sets: 4, reps: "6–10", rir: "2–3", rest: 180, cue: "Add 5 lb once you hit 10 on every set." },
+    { name: "Flat DB Bench Press", sets: 4, reps: "6–10", rir: "1–2", rest: 150, cue: "Elbows ~45°. Pause a beat on the chest." },
+    { name: "Barbell Row", sets: 4, reps: "6–10", rir: "1–2", rest: 150, cue: "Torso stays put. Pull to the lower ribs." },
+    { name: "Lying Leg Curl", sets: 3, reps: "10–12", rir: "0–1 last set", rest: 90, cue: "Three-second negative every rep." },
+    { name: "Cable Lateral Raise", sets: 3, reps: "12–15", rir: "0–1 last set", rest: 60, cue: "Light. Lead with the elbow." },
+    { name: "Cable Curl", sets: 3, reps: "10–12", rir: "0–1 last set", rest: 60, cue: "Elbows still. No swinging the torso." },
+    { name: "Standing Calf Raise", sets: 3, reps: "10–15", rir: "0–1 last set", rest: 60, cue: "Full stretch at the bottom, hold the top for a count." },
+    { name: "Cable Face Pull", sets: 3, reps: "15", rir: "3+", rest: 60, cue: "Shoulder insurance. Never grind these." }
+  ]},
+  B: { name: "Hinge + Vertical Press", exercises: [
+    { name: "Romanian Deadlift", sets: 4, reps: "6–10", rir: "2–3", rest: 180, cue: "Bar drags the thighs. Stop when the hamstrings run out." },
+    { name: "Standing Barbell Overhead Press", sets: 4, reps: "6–10", rir: "2", rest: 180, cue: "Squeeze glutes, ribs down. No layback." },
+    { name: "Pull-up or Cable Pulldown", sets: 4, reps: "6–10", rir: "1–2", rest: 150, cue: "Add weight once you clear 10 clean reps." },
+    { name: "Cable Fly", sets: 3, reps: "12–15", rir: "0–1 last set", rest: 75, cue: "Third chest exposure of the week. Stretch, don't press." },
+    { name: "Bulgarian Split Squat", sets: 3, reps: "8–10 / side", rir: "1–2", rest: 120, cue: "Front foot flat, chest tall. Dumbbells at sides." },
+    { name: "Incline DB Curl", sets: 3, reps: "10–12", rir: "0–1 last set", rest: 60, cue: "Full stretch at the bottom — that's the whole point." },
+    { name: "Cable Triceps Pushdown", sets: 3, reps: "10–12", rir: "0–1 last set", rest: 60, cue: "Elbows pinned to the ribs." },
+    { name: "Kettlebell Suitcase Carry", sets: 3, reps: "40 yd / side", rir: "—", rest: 60, cue: "Don't lean. Brace hard." }
+  ]},
+  C: { name: "Volume + Weak Points", exercises: [
+    { name: "Deadlift", sets: 3, reps: "6–8", rir: "2–3", rest: 210, cue: "Reset every rep." },
+    { name: "Incline DB Press", sets: 4, reps: "8–12", rir: "1–2", rest: 120, cue: "Bench at 30°. Upper chest work." },
+    { name: "Chest-Supported / Seated Cable Row", sets: 4, reps: "10–12", rir: "1–2", rest: 120, cue: "Pause one second with the shoulder blades pinned." },
+    { name: "Leg Extension", sets: 3, reps: "12–15", rir: "0–1 last set", rest: 75, cue: "Squeeze at the top for a count." },
+    { name: "Cable Lateral Raise", sets: 4, reps: "15", rir: "0–1 last set", rest: 45, cue: "Highest-frequency lift in the program. Delts respond." },
+    { name: "DB Hammer Curl", sets: 3, reps: "10–12", rir: "0–1 last set", rest: 60, cue: "Brachialis — this is what widens the arm." },
+    { name: "Overhead Cable Triceps Extension", sets: 3, reps: "12–15", rir: "0–1 last set", rest: 60, cue: "Long head under stretch." },
+    { name: "Seated or Standing Calf Raise", sets: 3, reps: "12–15", rir: "0–1 last set", rest: 60, cue: "Second calf hit. Slow down the descent." }
+  ]}
 };
 
 const els = {};
 ["scriptUrl","date","session","exercise","setNumber","weight","reps","rir","done"].forEach(id => els[id] = document.getElementById(id));
+
+function showTab(viewId, btn) {
+  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  document.getElementById(viewId).classList.add("active");
+  btn.classList.add("active");
+  if (viewId === "programView") renderProgram();
+}
 
 function todayStr() {
   const d = new Date();
@@ -210,8 +380,38 @@ function todayStr() {
 }
 
 function fillExercises() {
-  const list = PROGRAM[els.session.value];
-  els.exercise.innerHTML = list.map(n => `<option>${n}</option>`).join("");
+  const list = PROGRAM[els.session.value].exercises;
+  els.exercise.innerHTML = list.map(e => `<option>${e.name}</option>`).join("");
+  showTarget();
+}
+
+function showTarget() {
+  const list = PROGRAM[els.session.value].exercises;
+  const ex = list.find(e => e.name === els.exercise.value);
+  const hint = document.getElementById("targetHint");
+  if (ex) {
+    hint.textContent = `Target: ${ex.sets} sets × ${ex.reps} reps · RIR ${ex.rir} · rest ${ex.rest}s — ${ex.cue}`;
+  } else {
+    hint.textContent = "";
+  }
+}
+
+function renderProgram() {
+  const card = document.getElementById("programCard");
+  let html = "";
+  Object.keys(PROGRAM).forEach(key => {
+    const s = PROGRAM[key];
+    html += `<div class="sessionBlock"><div class="sessionTitle">${key} — ${s.name}</div>`;
+    s.exercises.forEach(e => {
+      html += `<div class="exRow">
+        <div class="exName">${e.name}</div>
+        <div class="exMeta">${e.sets} sets × ${e.reps} reps · RIR ${e.rir} · rest ${e.rest}s</div>
+        <div class="exCue">${e.cue}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  });
+  card.innerHTML = html;
 }
 
 function loadUrl() {
@@ -260,8 +460,6 @@ async function submitSet() {
   statusEl.className = "status";
 
   try {
-    // no-cors: Apps Script web apps don't return CORS headers to fetch,
-    // so we fire the request and treat network success as success.
     await fetch(url, {
       method: "POST",
       mode: "no-cors",
@@ -273,6 +471,7 @@ async function submitSet() {
     addLogLine(`${payload.exercise} — set ${payload.setNumber}: ${payload.weight||"-"}lb × ${payload.reps||"-"}`);
     els.setNumber.value = Number(payload.setNumber) + 1;
     els.weight.focus();
+    startRestTimer();
   } catch (err) {
     statusEl.textContent = "Failed to reach the sheet. Check the URL.";
     statusEl.className = "status err";
@@ -281,12 +480,149 @@ async function submitSet() {
   }
 }
 
-// Enter key submits from weight/reps/rir fields
 ["weight","reps","rir","setNumber"].forEach(id => {
   els[id].addEventListener("keydown", (e) => {
     if (e.key === "Enter") { e.preventDefault(); submitSet(); }
   });
 });
+
+async function loadHistory() {
+  const url = localStorage.getItem("ledger_script_url");
+  const statusEl = document.getElementById("historyStatus");
+  const card = document.getElementById("historyCard");
+  if (!url) {
+    statusEl.textContent = "Save your Apps Script URL on the Log tab first.";
+    statusEl.className = "status err";
+    return;
+  }
+  statusEl.textContent = "Loading...";
+  statusEl.className = "status";
+  try {
+    const res = await fetch(url + "?action=history");
+    const rows = await res.json();
+    if (!rows.length) {
+      card.innerHTML = `<div class="empty">No sets logged yet.</div>`;
+      statusEl.textContent = "";
+      return;
+    }
+    const byExercise = {};
+    rows.forEach(r => {
+      const ex = r.Exercise || "Unknown";
+      if (!byExercise[ex]) byExercise[ex] = [];
+      byExercise[ex].push(r);
+    });
+
+    let html = "";
+    Object.keys(byExercise).sort().forEach(ex => {
+      const sets = byExercise[ex];
+      let best = sets[0];
+      sets.forEach(s => { if (Number(s.Weight) > Number(best.Weight)) best = s; });
+      const recent = sets.slice(-5).reverse();
+      html += `<div class="histExercise">
+        <div class="histName">${ex}<span class="histPR">PR ${best.Weight||"-"}lb × ${best.Reps||"-"}</span></div>`;
+      recent.forEach(s => {
+        html += `<div class="histRow"><span class="histDate">${s.Date||""}</span><span>set ${s.SetNumber||""} · ${s.Weight||"-"}lb × ${s.Reps||"-"} ${s.RIR ? "· RIR "+s.RIR : ""}</span></div>`;
+      });
+      html += `</div>`;
+    });
+    card.innerHTML = html;
+    statusEl.textContent = "Updated.";
+    statusEl.className = "status ok";
+  } catch (err) {
+    statusEl.textContent = "Couldn't load history. Check the URL and that it's re-deployed.";
+    statusEl.className = "status err";
+  }
+}
+
+/* ---- Rest timer ---- */
+let timerInterval = null;
+let timerSecondsLeft = 0;
+let timerTotal = 0;
+let timerPaused = false;
+
+function currentExerciseRest() {
+  const list = PROGRAM[els.session.value].exercises;
+  const ex = list.find(e => e.name === els.exercise.value);
+  return ex ? ex.rest : 90;
+}
+
+function formatTime(s) {
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m}:${sec.toString().padStart(2,"0")}`;
+}
+
+function startRestTimer() {
+  clearInterval(timerInterval);
+  timerTotal = currentExerciseRest();
+  timerSecondsLeft = timerTotal;
+  timerPaused = false;
+  document.getElementById("timerLabel").textContent = `Rest — ${els.exercise.value}`;
+  document.getElementById("timerPauseBtn").textContent = "Pause";
+  document.getElementById("timerDisplay").classList.remove("done");
+  document.getElementById("timerCard").style.display = "block";
+  updateTimerDisplay();
+  timerInterval = setInterval(tickTimer, 1000);
+}
+
+function tickTimer() {
+  if (timerPaused) return;
+  timerSecondsLeft--;
+  if (timerSecondsLeft <= 0) {
+    timerSecondsLeft = 0;
+    updateTimerDisplay();
+    clearInterval(timerInterval);
+    timerDone();
+    return;
+  }
+  updateTimerDisplay();
+}
+
+function updateTimerDisplay() {
+  document.getElementById("timerDisplay").textContent = formatTime(timerSecondsLeft);
+  const pct = timerTotal > 0 ? (timerSecondsLeft / timerTotal) * 100 : 0;
+  document.getElementById("timerFill").style.width = pct + "%";
+}
+
+function pauseResumeTimer() {
+  timerPaused = !timerPaused;
+  document.getElementById("timerPauseBtn").textContent = timerPaused ? "Resume" : "Pause";
+}
+
+function adjustTimer(delta) {
+  timerSecondsLeft = Math.max(0, timerSecondsLeft + delta);
+  if (timerSecondsLeft > timerTotal) timerTotal = timerSecondsLeft;
+  updateTimerDisplay();
+}
+
+function skipTimer() {
+  clearInterval(timerInterval);
+  document.getElementById("timerCard").style.display = "none";
+}
+
+function timerDone() {
+  document.getElementById("timerDisplay").classList.add("done");
+  document.getElementById("timerLabel").textContent = "Rest done — go";
+  if (navigator.vibrate) navigator.vibrate([200,100,200,100,200]);
+  playBeep();
+}
+
+function playBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.25, 0.5].forEach(offset => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.2, ctx.currentTime + offset);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + offset + 0.2);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(ctx.currentTime + offset);
+      osc.stop(ctx.currentTime + offset + 0.2);
+    });
+  } catch (e) { /* audio not available */ }
+}
 
 els.date.value = todayStr();
 fillExercises();
